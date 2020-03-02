@@ -10,6 +10,7 @@ class Route
   field :redirect_to, type: String
   field :redirect_type, type: String
   field :segments_mode, type: String
+  field :http_methods, type: Array, # default: ["GET"] once pre-work done
 
   index({ incoming_path: 1 }, unique: true)
 
@@ -18,13 +19,15 @@ class Route
   index(incoming_path: 1, route_type: 1)
 
   HANDLERS = %w(backend redirect gone).freeze
-
+  VALID_HTTP_METHODS = %w(GET POST PUT PATCH DELETE).freeze
   DUPLICATE_KEY_ERROR = "E11000".freeze
 
   validates :incoming_path, uniqueness: true
   validate :validate_incoming_path
   validates :route_type, inclusion: { in: %w(prefix exact) }
   validates :handler, inclusion: { in: HANDLERS }
+  validate :validate_http_methods
+
   with_options if: :backend? do |be|
     be.validates :backend_id, presence: true
     be.validate :validate_backend_id
@@ -123,6 +126,20 @@ private
     end
   rescue URI::InvalidURIError
     errors[:redirect_to] << "is an invalid URI"
+  end
+
+  def validate_http_methods
+    return if http_methods.nil?
+
+    if http_methods.uniq != http_methods
+      errors["http_methods"] << "contains duplicate items"
+    end
+
+    incorrect = http_methods.reject { |m| VALID_HTTP_METHODS.includes?(m) }
+
+    if incorrect.any?
+      errors["http_methods"] << "contains unexpected items: #{incorrect.join(', ')}"
+    end
   end
 
   def validate_external_target(target)

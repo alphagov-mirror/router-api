@@ -1,4 +1,11 @@
 namespace :backend do
+  desc "Reload routes in Router"
+  task reload_routes: :environment do
+    puts "Reloading router"
+
+    RouterReloader.reload
+  end
+
   desc "Updates backend_url for a given backend"
   task :modify_url, %i[backend_id backend_url] => [:environment] do |_t, args|
     unless args[:backend_id] && args[:backend_url]
